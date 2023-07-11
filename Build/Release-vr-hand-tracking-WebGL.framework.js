@@ -2300,29 +2300,29 @@ var tempDouble;
 var tempI64;
 
 var ASM_CONSTS = {
- 4032176: function() {
+ 4032576: function() {
   Module["emscripten_get_now_backup"] = performance.now;
  },
- 4032231: function($0) {
+ 4032631: function($0) {
   performance.now = function() {
    return $0;
   };
  },
- 4032279: function($0) {
+ 4032679: function($0) {
   performance.now = function() {
    return $0;
   };
  },
- 4032327: function() {
+ 4032727: function() {
   performance.now = Module["emscripten_get_now_backup"];
  },
- 4032382: function() {
+ 4032782: function() {
   return Module.webglContextAttributes.premultipliedAlpha;
  },
- 4032443: function() {
+ 4032843: function() {
   return Module.webglContextAttributes.preserveDrawingBuffer;
  },
- 4032507: function() {
+ 4032907: function() {
   return Module.webglContextAttributes.powerPreference;
  }
 };
