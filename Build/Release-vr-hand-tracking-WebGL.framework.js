@@ -2300,29 +2300,29 @@ var tempDouble;
 var tempI64;
 
 var ASM_CONSTS = {
- 4053432: function() {
+ 4042276: function() {
   Module["emscripten_get_now_backup"] = performance.now;
  },
- 4053487: function($0) {
+ 4042331: function($0) {
   performance.now = function() {
    return $0;
   };
  },
- 4053535: function($0) {
+ 4042379: function($0) {
   performance.now = function() {
    return $0;
   };
  },
- 4053583: function() {
+ 4042427: function() {
   performance.now = Module["emscripten_get_now_backup"];
  },
- 4053638: function() {
+ 4042482: function() {
   return Module.webglContextAttributes.premultipliedAlpha;
  },
- 4053699: function() {
+ 4042543: function() {
   return Module.webglContextAttributes.preserveDrawingBuffer;
  },
- 4053763: function() {
+ 4042607: function() {
   return Module.webglContextAttributes.powerPreference;
  }
 };
@@ -3904,161 +3904,6 @@ function _JS_SystemInfo_HasWebGL() {
 
 function _JS_UnityEngineShouldQuit() {
  return !!Module.shouldQuit;
-}
-
-var activeWebCams = {};
-
-function _JS_WebCamVideo_CanPlay(deviceId) {
- var webcam = activeWebCams[deviceId];
- return webcam && webcam.video.videoWidth > 0 && webcam.video.videoHeight > 0;
-}
-
-function _JS_WebCamVideo_GetDeviceName(deviceId, buffer, bufferSize) {
- var webcam = videoInputDevices[deviceId];
- var name = webcam ? webcam.name : "(disconnected input #" + (deviceId + 1) + ")";
- if (buffer) stringToUTF8(name, buffer, bufferSize);
- return lengthBytesUTF8(name);
-}
-
-function _JS_WebCamVideo_GetNativeHeight(deviceId) {
- return activeWebCams[deviceId] && activeWebCams[deviceId].video.videoHeight;
-}
-
-function _JS_WebCamVideo_GetNativeWidth(deviceId) {
- return activeWebCams[deviceId] && activeWebCams[deviceId].video.videoWidth;
-}
-
-function _JS_WebCamVideo_GetNumDevices() {
- var numDevices = 0;
- if (!videoInputDevicesEnumerated) {
-  console.warn("WebCam devices were used before being enumerated by the browser. The browser is likely " + "pausing WebCam device enumeration due to the page being out of focus while the Unity " + "application is being loaded in the background.\n" + "If you are a developer, you can ensure WebCam devices are enumerated by first requiring " + "user interaction.\n" + "See https://github.com/w3c/mediacapture-main/issues/905 for details.");
-  return numDevices;
- }
- Object.keys(videoInputDevices).forEach(function(i) {
-  numDevices = Math.max(numDevices, videoInputDevices[i].id + 1);
- });
- return numDevices;
-}
-
-var disableNextSubImage = false;
-
-var webcamLatestTextureId = 0;
-
-var webcamBufferToTextureTable = {};
-
-function _JS_WebCamVideo_GrabFrame(deviceId, buffer, destWidth, destHeight) {
- var videoElement;
- if (typeof activeWebCams !== "undefined") {
-  var webcamDevice = activeWebCams[deviceId];
-  if (!webcamDevice) return;
-  var timeNow = performance.now();
-  if (timeNow < webcamDevice.nextFrameAvailableTime) {
-   return;
-  }
-  webcamDevice.nextFrameAvailableTime += webcamDevice.frameLengthInMsecs;
-  if (webcamDevice.nextFrameAvailableTime < timeNow) {
-   webcamDevice.nextFrameAvailableTime = timeNow + webcamDevice.frameLengthInMsecs;
-  }
-  videoElement = webcamDevice.video;
- } else if (!typeof MediaDevices !== "undefined") {
-  if (!MediaDevices[deviceId].video) {
-   console.error("WebCam not initialized.");
-   return;
-  }
-  videoElement = MediaDevices[deviceId].video;
- }
- if (!webcamBufferToTextureTable[buffer]) {
-  if (!webcamLatestTextureId) {
-   return;
-  }
-  webcamBufferToTextureTable[buffer] = webcamLatestTextureId;
-  webcamLatestTextureId = 0;
- }
- GLctx.bindTexture(GLctx.TEXTURE_2D, GL.textures[webcamBufferToTextureTable[buffer]]);
- GLctx.pixelStorei(GLctx.UNPACK_FLIP_Y_WEBGL, true);
- GLctx.texImage2D(GLctx.TEXTURE_2D, 0, GLctx.RGBA, GLctx.RGBA, GLctx.UNSIGNED_BYTE, videoElement);
- GLctx.pixelStorei(GLctx.UNPACK_FLIP_Y_WEBGL, false);
- disableNextSubImage = true;
- return 1;
-}
-
-function _JS_WebCamVideo_IsFrontFacing(deviceId) {
- return videoInputDevices[deviceId].isFrontFacing;
-}
-
-function _JS_WebCamVideo_RemoveWhereTextureId(textureId) {
- Object.entries(webcamBufferToTextureTable).forEach(function(pair) {
-  if (pair[1] == textureId) {
-   delete webcamBufferToTextureTable[pair[0]];
-  }
- });
-}
-
-function _JS_WebCamVideo_SetLatestTextureId(textureId) {
- webcamLatestTextureId = textureId;
- GLctx.deleteTexture(GL.textures[textureId]);
- GL.textures[textureId] = GLctx.createTexture();
- GL.textures[textureId].name = textureId;
- GLctx.bindTexture(GLctx.TEXTURE_2D, GL.textures[textureId]);
- GLctx.texParameteri(GLctx.TEXTURE_2D, GLctx.TEXTURE_WRAP_S, GLctx.CLAMP_TO_EDGE);
- GLctx.texParameteri(GLctx.TEXTURE_2D, GLctx.TEXTURE_WRAP_T, GLctx.CLAMP_TO_EDGE);
- GLctx.texParameteri(GLctx.TEXTURE_2D, GLctx.TEXTURE_MIN_FILTER, GLctx.LINEAR);
-}
-
-function _JS_WebCamVideo_Start(deviceId) {
- if (activeWebCams[deviceId]) {
-  ++activeWebCams[deviceId].refCount;
-  return;
- }
- if (!videoInputDevices[deviceId]) {
-  console.error("Cannot start video input with ID " + deviceId + ". No such ID exists! Existing video inputs are:");
-  console.dir(videoInputDevices);
-  return;
- }
- navigator.mediaDevices.getUserMedia({
-  audio: false,
-  video: videoInputDevices[deviceId].deviceId ? {
-   deviceId: {
-    exact: videoInputDevices[deviceId].deviceId
-   }
-  } : true
- }).then(function(stream) {
-  var video = document.createElement("video");
-  video.srcObject = stream;
-  if (/(iPhone|iPad|iPod)/.test(navigator.userAgent)) {
-   warnOnce("Applying iOS Safari specific workaround to video playback: https://bugs.webkit.org/show_bug.cgi?id=217578");
-   video.setAttribute("playsinline", "");
-  }
-  video.play();
-  var canvas = document.createElement("canvas");
-  activeWebCams[deviceId] = {
-   video: video,
-   canvas: document.createElement("canvas"),
-   stream: stream,
-   frameLengthInMsecs: 1e3 / stream.getVideoTracks()[0].getSettings().frameRate,
-   nextFrameAvailableTime: 0,
-   refCount: 1
-  };
- }).catch(function(e) {
-  console.error("Unable to start video input! " + e);
- });
-}
-
-function _JS_WebCamVideo_Stop(deviceId) {
- var webcam = activeWebCams[deviceId];
- if (!webcam) return;
- if (--webcam.refCount <= 0) {
-  webcam.video.pause();
-  webcam.video.srcObject = null;
-  webcam.stream.getVideoTracks().forEach(function(track) {
-   track.stop();
-  });
-  delete activeWebCams[deviceId];
- }
-}
-
-function _JS_WebCam_IsSupported() {
- return !!navigator.mediaDevices;
 }
 
 var wr = {
@@ -13717,6 +13562,8 @@ function _glTexStorage3D(x0, x1, x2, x3, x4, x5) {
  GLctx["texStorage3D"](x0, x1, x2, x3, x4, x5);
 }
 
+var disableNextSubImage = false;
+
 function _glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels) {
  if (disableNextSubImage) {
   disableNextSubImage = false;
@@ -14644,18 +14491,6 @@ var asmLibraryArg = {
  "JS_SystemInfo_HasFullscreen": _JS_SystemInfo_HasFullscreen,
  "JS_SystemInfo_HasWebGL": _JS_SystemInfo_HasWebGL,
  "JS_UnityEngineShouldQuit": _JS_UnityEngineShouldQuit,
- "JS_WebCamVideo_CanPlay": _JS_WebCamVideo_CanPlay,
- "JS_WebCamVideo_GetDeviceName": _JS_WebCamVideo_GetDeviceName,
- "JS_WebCamVideo_GetNativeHeight": _JS_WebCamVideo_GetNativeHeight,
- "JS_WebCamVideo_GetNativeWidth": _JS_WebCamVideo_GetNativeWidth,
- "JS_WebCamVideo_GetNumDevices": _JS_WebCamVideo_GetNumDevices,
- "JS_WebCamVideo_GrabFrame": _JS_WebCamVideo_GrabFrame,
- "JS_WebCamVideo_IsFrontFacing": _JS_WebCamVideo_IsFrontFacing,
- "JS_WebCamVideo_RemoveWhereTextureId": _JS_WebCamVideo_RemoveWhereTextureId,
- "JS_WebCamVideo_SetLatestTextureId": _JS_WebCamVideo_SetLatestTextureId,
- "JS_WebCamVideo_Start": _JS_WebCamVideo_Start,
- "JS_WebCamVideo_Stop": _JS_WebCamVideo_Stop,
- "JS_WebCam_IsSupported": _JS_WebCam_IsSupported,
  "JS_WebRequest_Abort": _JS_WebRequest_Abort,
  "JS_WebRequest_Create": _JS_WebRequest_Create,
  "JS_WebRequest_GetResponseMetaData": _JS_WebRequest_GetResponseMetaData,
@@ -15437,15 +15272,9 @@ var dynCall_d = Module["dynCall_d"] = createExportWrapper("dynCall_d");
 
 var dynCall_vijii = Module["dynCall_vijii"] = createExportWrapper("dynCall_vijii");
 
-var dynCall_iiji = Module["dynCall_iiji"] = createExportWrapper("dynCall_iiji");
-
 var dynCall_iijji = Module["dynCall_iijji"] = createExportWrapper("dynCall_iijji");
 
-var dynCall_jiiiiiiiiii = Module["dynCall_jiiiiiiiiii"] = createExportWrapper("dynCall_jiiiiiiiiii");
-
-var dynCall_iiiiiiiiiji = Module["dynCall_iiiiiiiiiji"] = createExportWrapper("dynCall_iiiiiiiiiji");
-
-var dynCall_vji = Module["dynCall_vji"] = createExportWrapper("dynCall_vji");
+var dynCall_viiiifii = Module["dynCall_viiiifii"] = createExportWrapper("dynCall_viiiifii");
 
 var dynCall_vidi = Module["dynCall_vidi"] = createExportWrapper("dynCall_vidi");
 
@@ -15467,9 +15296,13 @@ var dynCall_viiiffffii = Module["dynCall_viiiffffii"] = createExportWrapper("dyn
 
 var dynCall_iiiiffffi = Module["dynCall_iiiiffffi"] = createExportWrapper("dynCall_iiiiffffi");
 
-var dynCall_viiiifii = Module["dynCall_viiiifii"] = createExportWrapper("dynCall_viiiifii");
-
 var dynCall_viiiiifii = Module["dynCall_viiiiifii"] = createExportWrapper("dynCall_viiiiifii");
+
+var dynCall_viiiidi = Module["dynCall_viiiidi"] = createExportWrapper("dynCall_viiiidi");
+
+var dynCall_iiiiiiidii = Module["dynCall_iiiiiiidii"] = createExportWrapper("dynCall_iiiiiiidii");
+
+var dynCall_viiiidij = Module["dynCall_viiiidij"] = createExportWrapper("dynCall_viiiidij");
 
 var dynCall_viijjii = Module["dynCall_viijjii"] = createExportWrapper("dynCall_viijjii");
 
@@ -15483,11 +15316,11 @@ var dynCall_fiffi = Module["dynCall_fiffi"] = createExportWrapper("dynCall_fiffi
 
 var dynCall_viiiiiiiiifi = Module["dynCall_viiiiiiiiifi"] = createExportWrapper("dynCall_viiiiiiiiifi");
 
-var dynCall_viiiidi = Module["dynCall_viiiidi"] = createExportWrapper("dynCall_viiiidi");
+var dynCall_jiiiiiiiiii = Module["dynCall_jiiiiiiiiii"] = createExportWrapper("dynCall_jiiiiiiiiii");
 
-var dynCall_iiiiiiidii = Module["dynCall_iiiiiiidii"] = createExportWrapper("dynCall_iiiiiiidii");
+var dynCall_iiiiiiiiiji = Module["dynCall_iiiiiiiiiji"] = createExportWrapper("dynCall_iiiiiiiiiji");
 
-var dynCall_viiiidij = Module["dynCall_viiiidij"] = createExportWrapper("dynCall_viiiidij");
+var dynCall_vji = Module["dynCall_vji"] = createExportWrapper("dynCall_vji");
 
 var dynCall_viifffffi = Module["dynCall_viifffffi"] = createExportWrapper("dynCall_viifffffi");
 
@@ -15497,19 +15330,19 @@ var dynCall_fiiiii = Module["dynCall_fiiiii"] = createExportWrapper("dynCall_fii
 
 var dynCall_fffi = Module["dynCall_fffi"] = createExportWrapper("dynCall_fffi");
 
-var dynCall_viidiji = Module["dynCall_viidiji"] = createExportWrapper("dynCall_viidiji");
-
-var dynCall_viidjii = Module["dynCall_viidjii"] = createExportWrapper("dynCall_viidjii");
-
-var dynCall_fiiffi = Module["dynCall_fiiffi"] = createExportWrapper("dynCall_fiiffi");
-
-var dynCall_viiififii = Module["dynCall_viiififii"] = createExportWrapper("dynCall_viiififii");
-
 var dynCall_iiffi = Module["dynCall_iiffi"] = createExportWrapper("dynCall_iiffi");
 
 var dynCall_iiidii = Module["dynCall_iiidii"] = createExportWrapper("dynCall_iiidii");
 
 var dynCall_fiiifi = Module["dynCall_fiiifi"] = createExportWrapper("dynCall_fiiifi");
+
+var dynCall_viffffi = Module["dynCall_viffffi"] = createExportWrapper("dynCall_viffffi");
+
+var dynCall_iiji = Module["dynCall_iiji"] = createExportWrapper("dynCall_iiji");
+
+var dynCall_fiiffi = Module["dynCall_fiiffi"] = createExportWrapper("dynCall_fiiffi");
+
+var dynCall_viiififii = Module["dynCall_viiififii"] = createExportWrapper("dynCall_viiififii");
 
 var dynCall_viiiiiiiiiiiii = Module["dynCall_viiiiiiiiiiiii"] = createExportWrapper("dynCall_viiiiiiiiiiiii");
 
@@ -15517,13 +15350,15 @@ var dynCall_viiij = Module["dynCall_viiij"] = createExportWrapper("dynCall_viiij
 
 var dynCall_viijii = Module["dynCall_viijii"] = createExportWrapper("dynCall_viijii");
 
-var dynCall_viffffi = Module["dynCall_viffffi"] = createExportWrapper("dynCall_viffffi");
-
 var dynCall_jijiii = Module["dynCall_jijiii"] = createExportWrapper("dynCall_jijiii");
 
 var dynCall_jjji = Module["dynCall_jjji"] = createExportWrapper("dynCall_jjji");
 
 var dynCall_jiiiii = Module["dynCall_jiiiii"] = createExportWrapper("dynCall_jiiiii");
+
+var dynCall_viidiji = Module["dynCall_viidiji"] = createExportWrapper("dynCall_viidiji");
+
+var dynCall_viidjii = Module["dynCall_viidjii"] = createExportWrapper("dynCall_viidjii");
 
 var dynCall_jijj = Module["dynCall_jijj"] = createExportWrapper("dynCall_jijj");
 
@@ -16328,43 +16163,10 @@ function invoke_viiffi(index, a1, a2, a3, a4, a5) {
  }
 }
 
-function invoke_viiif(index, a1, a2, a3, a4) {
- var sp = stackSave();
- try {
-  dynCall_viiif(index, a1, a2, a3, a4);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_viiifi(index, a1, a2, a3, a4, a5) {
- var sp = stackSave();
- try {
-  dynCall_viiifi(index, a1, a2, a3, a4, a5);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
 function invoke_vidi(index, a1, a2, a3) {
  var sp = stackSave();
  try {
   dynCall_vidi(index, a1, a2, a3);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_viiiidi(index, a1, a2, a3, a4, a5, a6) {
- var sp = stackSave();
- try {
-  dynCall_viiiidi(index, a1, a2, a3, a4, a5, a6);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16449,21 +16251,10 @@ function invoke_fiiiiif(index, a1, a2, a3, a4, a5, a6) {
  }
 }
 
-function invoke_vifi(index, a1, a2, a3) {
+function invoke_viiiidi(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();
  try {
-  dynCall_vifi(index, a1, a2, a3);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_viiiiiiiiifi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
- var sp = stackSave();
- try {
-  dynCall_viiiiiiiiifi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+  dynCall_viiiidi(index, a1, a2, a3, a4, a5, a6);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16486,6 +16277,50 @@ function invoke_iiiiiiidii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
  var sp = stackSave();
  try {
   return dynCall_iiiiiiidii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_vifi(index, a1, a2, a3) {
+ var sp = stackSave();
+ try {
+  dynCall_vifi(index, a1, a2, a3);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_viiiiiiiiifi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+ var sp = stackSave();
+ try {
+  dynCall_viiiiiiiiifi(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_viiif(index, a1, a2, a3, a4) {
+ var sp = stackSave();
+ try {
+  dynCall_viiif(index, a1, a2, a3, a4);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_viiifi(index, a1, a2, a3, a4, a5) {
+ var sp = stackSave();
+ try {
+  dynCall_viiifi(index, a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16559,17 +16394,6 @@ function invoke_fffi(index, a1, a2, a3) {
  }
 }
 
-function invoke_viiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) {
- var sp = stackSave();
- try {
-  dynCall_viiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
 function invoke_viffffi(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();
  try {
@@ -16607,6 +16431,17 @@ function invoke_iifi(index, a1, a2, a3) {
  var sp = stackSave();
  try {
   return dynCall_iifi(index, a1, a2, a3);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_viiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) {
+ var sp = stackSave();
+ try {
+  dynCall_viiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16757,6 +16592,17 @@ function invoke_jiii(index, a1, a2, a3) {
  }
 }
 
+function invoke_iiji(index, a1, a2, a3, a4) {
+ var sp = stackSave();
+ try {
+  return dynCall_iiji(index, a1, a2, a3, a4);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
 function invoke_viiji(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
@@ -16779,6 +16625,17 @@ function invoke_vijii(index, a1, a2, a3, a4, a5) {
  }
 }
 
+function invoke_jiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
+ var sp = stackSave();
+ try {
+  return dynCall_jiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
 function invoke_viji(index, a1, a2, a3, a4) {
  var sp = stackSave();
  try {
@@ -16790,32 +16647,10 @@ function invoke_viji(index, a1, a2, a3, a4) {
  }
 }
 
-function invoke_iiiiiiiiiji(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+function invoke_viiiidij(index, a1, a2, a3, a4, a5, a6, a7, a8) {
  var sp = stackSave();
  try {
-  return dynCall_iiiiiiiiiji(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_vji(index, a1, a2, a3) {
- var sp = stackSave();
- try {
-  dynCall_vji(index, a1, a2, a3);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_jiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
- var sp = stackSave();
- try {
-  return dynCall_jiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+  dynCall_viiiidij(index, a1, a2, a3, a4, a5, a6, a7, a8);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16845,10 +16680,21 @@ function invoke_jjiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
  }
 }
 
-function invoke_viiiidij(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+function invoke_iiiiiiiiiji(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
  var sp = stackSave();
  try {
-  dynCall_viiiidij(index, a1, a2, a3, a4, a5, a6, a7, a8);
+  return dynCall_iiiiiiiiiji(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0 && e !== "longjmp") throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_vji(index, a1, a2, a3) {
+ var sp = stackSave();
+ try {
+  dynCall_vji(index, a1, a2, a3);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
@@ -16904,17 +16750,6 @@ function invoke_viij(index, a1, a2, a3, a4) {
  var sp = stackSave();
  try {
   dynCall_viij(index, a1, a2, a3, a4);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0 && e !== "longjmp") throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_iiji(index, a1, a2, a3, a4) {
- var sp = stackSave();
- try {
-  return dynCall_iiji(index, a1, a2, a3, a4);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0 && e !== "longjmp") throw e;
